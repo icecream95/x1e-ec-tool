@@ -32,15 +32,15 @@ MODELS = {
         fans=["Left Fan", "Right Fan"],
         fan_blades=[97, 97],
         rpm_models=[
-            ("-0.06313x^2 +48.69x -173.6", 17, 254),
-            ("-0.07456x^2 +57.05x -2340", 56, 254),
+            ("-0.06313x^2 +48.69x -173.6", 17, 22, 8400),
+            ("-0.07456x^2 +57.05x -2340", 56, 60, 8200),
         ],
     ),
 }
 
-# Use the maximum of a selection thermal zones, since
-# there can be deltas of about 10°C across the chip.
-# TODO: Do not try to use the second core cluster for Purwa.
+# Use the maximum of a selection of thermal zones, since
+# there can be a delta of about 10°C across the chip.
+# TODO: Do not try to use the core cluster 2 for Purwa.
 THERMAL_ZONES = [
     "cpu0-0-top-thermal",
     "cpu1-0-top-thermal",
@@ -64,7 +64,7 @@ def open_i2c(addr):
     devs = [x for x in os.listdir(buspath) if x.startswith("i2c-")]
 
     if len(devs) != 1:
-        print(f"Cannot find device in ")
+        print(f"Cannot find device in {buspath}")
         exit(1)
 
     bus = int(devs[0].split("-")[1])
@@ -77,21 +77,10 @@ def open_i2c(addr):
         except FileNotFoundError:
             raise RuntimeError("Try: modprobe i2c-dev")
 
-info = get_model_info()
-i2c_fd = open_i2c(BUSADDR)
-
 I2C_SLAVE = 0x0703
 I2C_RDWR = 0x0707
 
 I2C_M_RD = 0x0001
-
-# The EC handles both, so the distinction isn't precise
-EC_ADDR = 0x5b
-FAN_ADDR = 0x76
-
-# Check that there is no kernel driver for the I2C devices
-fcntl.ioctl(i2c_fd, I2C_SLAVE, FAN_ADDR)
-fcntl.ioctl(i2c_fd, I2C_SLAVE, EC_ADDR)
 
 class I2c_msg(ctypes.Structure):
     _fields_ = [("addr", ctypes.c_uint16),
@@ -100,7 +89,7 @@ class I2c_msg(ctypes.Structure):
                 ("buf", ctypes.POINTER(ctypes.c_char))]
 
     def __repr__(self):
-        flg = "I2C_M_RD" if self.flags & 1 != 0 else "0"
+        flg = "I2C_M_RD" if (self.flags & I2C_M_RD) != 0 else "0"
         buf = " ".join([f"{self.buf[i][0]:02x}" for i in range(self.len)])
         return f"I2c_msg(addr={self.addr}, flags={flg}, len={self.len}, buf='{buf}')"
 
@@ -142,6 +131,10 @@ class Request:
         fcntl.ioctl(i2c_fd, I2C_RDWR, msg)
 
 ######## EC basic commands (defined in DSDT)
+
+# The EC handles both, so the distinction isn't precise
+EC_ADDR = 0x5b
+FAN_ADDR = 0x76
 
 def ecrb(maj, min):
     res = Buffer(1)
@@ -218,38 +211,60 @@ def set_suspend_mode(mode):
 
 ########
 
-def measure_fan_model(fan_id, step):
+def measure_fan_model(fan_ids, step=1):
     import numpy as np
 
-    # Assume that 255 is "max speed" mode, and as such will be an
-    # outlier for the model.
-
-    # TODO: Going from 0 RPM to lower speeds may not work, probe
-    # for the lowest speed with enough "activation energy"
-
     set_fan_mode(FAN_MODE_MANUAL)
-    set_fan_speed(fan_id, 254)
-    print("Spinning up fan...")
-    time.sleep(5)
 
-    data = []
+    print(f"Spinning up fans...")
+    for j in fan_ids:
+        set_fan_speed(j, 255)
+    time.sleep(3)
+
+    max_speeds = {j: get_fan_rpm(j) for j in fan_ids}
+
+    print(f"Collecting RPM information:")
+
+    data = {j: [] for j in fan_ids}
     for i in range(254, 0, -1 * step):
-        set_fan_speed(fan_id, i)
-        time.sleep(1)
-        rpm = get_fan_rpm(fan_id)
-        print(i, rpm)
-        data.append([i, rpm])
+        for j in fan_ids:
+            set_fan_speed(j, i)
+        time.sleep(0.5)
+        for j in fan_ids:
+            rpm = get_fan_rpm(j)
+            print(j, i, rpm)
+            data[j].append([i, rpm])
 
     # Filter out speeds where the fan doesn't spin
-    data = np.array([x for x in data if x[1]])
+    data = {j: np.array([x for x in data[j] if x[1]]) for j in fan_ids}
 
-    a, b, c = np.polyfit(data[:, 0], data[:, 1], 2)
-    poly = f"{a:.4g}x^2 {b:+.4g}x {c:+.4g}"
+    for j in fan_ids:
+        if not len(data):
+            print(f"Error: Could not read RPM for fan {j}")
 
-    first = data[:, 0].min()
+    firsts = {j: data[j][:, 0].min() for j in fan_ids}
+    first_spins = {j: 255 for j in fan_ids}
 
-    print("Fan model polynomial:")
-    print(f"({poly}, {first}, 254),")
+    print(f"Searching for lowest speed where fans spin up")
+
+    for i in range(min(firsts.values()), 255, step):
+        for j in fan_ids:
+            set_fan_speed(j, i)
+        time.sleep(0.5)
+        for j in fan_ids:
+            if first_spins[j] == 255 and get_fan_rpm(j):
+                first_spins[j] = i
+        print(i, first_spins)
+        if 255 not in first_spins.values():
+            break
+
+    print("Fan model data:")
+
+    for j in fan_ids:
+        a, b, c = np.polyfit(data[j][:, 0], data[j][:, 1], 2)
+        poly = f"{a:.4g}x^2 {b:+.4g}x {c:+.4g}"
+
+        print(f"{j}: ({poly}, {firsts[j]}, {first_spins[j]}, {max_speeds[j]}),")
 
     print("Switching back to automatic mode")
     set_fan_mode(FAN_MODE_AUTO)
@@ -273,7 +288,7 @@ def speed_for_rpm(fan_id, rpm):
     except ValueError: # sqrt of negative value
         val = 256
 
-    if val < model[1] or val > model[2]:
+    if val < model[1] or val > 254:
         print(f"Warning: Speed for RPM {rpm} is out of domain")
 
     return min(max(round(val), 0), 255)
@@ -331,6 +346,15 @@ def print_fan_speeds():
         else:
             print(f"{fan}: {get_fan_rpm(i)} RPM")
 
+########
+
+info = get_model_info()
+i2c_fd = open_i2c(BUSADDR)
+
+# Check that there is no kernel driver for the I2C devices
+fcntl.ioctl(i2c_fd, I2C_SLAVE, FAN_ADDR)
+fcntl.ioctl(i2c_fd, I2C_SLAVE, EC_ADDR)
+
 def usage():
     print("get-speed : get fan speeds")
     print("set-speed : set fan speed (RPM if available), only works in manual mode")
@@ -338,7 +362,7 @@ def usage():
     print("temp-loop : send temps to EC (required for auto mode to work)")
     print("profile : set profile (takes integer index starting at 0)")
     print("suspend : set suspend mode to 1 or 0 (DISABLES KEYBOARD while active!)")
-    pass
+    print("measure-rpm : measure RPM at different fan speeds (takes three minutes)")
 
 args = sys.argv[1:]
 
@@ -374,5 +398,7 @@ elif args[0] == "temp-loop":
     temperature_report_loop(THERMAL_ZONES)
 elif args[0] == "suspend":
     set_suspend_mode(int(args[1]))
+elif args[0] == "measure-rpm":
+    measure_fan_model(range(len(info.fans)))
 else:
     usage()
