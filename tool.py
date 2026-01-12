@@ -214,16 +214,17 @@ def set_suspend_mode(mode):
 def measure_fan_model(fan_ids, step=1):
     import numpy as np
 
+    print("Switching to manual mode")
     set_fan_mode(FAN_MODE_MANUAL)
 
-    print(f"Spinning up fans...")
+    print("Spinning up fans...")
     for j in fan_ids:
         set_fan_speed(j, 255)
     time.sleep(3)
 
     max_speeds = {j: get_fan_rpm(j) for j in fan_ids}
 
-    print(f"Collecting RPM information:")
+    print("Collecting RPM information:")
 
     data = {j: [] for j in fan_ids}
     for i in range(254, 0, -1 * step):
@@ -245,7 +246,7 @@ def measure_fan_model(fan_ids, step=1):
     firsts = {j: data[j][:, 0].min() for j in fan_ids}
     first_spins = {j: 255 for j in fan_ids}
 
-    print(f"Searching for lowest speed where fans spin up")
+    print("Searching for lowest speed where fans spin up")
 
     for i in range(min(firsts.values()), 255, step):
         for j in fan_ids:
