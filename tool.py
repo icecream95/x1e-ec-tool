@@ -354,6 +354,7 @@ def kb_backlight_fire(zones, period=0.2):
         return
 
     min_temp = 40
+    blue_temp = 55
     temp_range = 30
 
     cur = [256, 256, 256]
@@ -364,10 +365,11 @@ def kb_backlight_fire(zones, period=0.2):
             temp = max(temp, int(os.pread(fd, 20, 0)) / 1000)
 
         frac = min(max((temp - min_temp) / temp_range, 0), 1)
+        frac2 = min(max((temp - blue_temp) / temp_range, 0), 1)
 
         r = frac * 1.0
         g = frac * frac * 0.5
-        b = 0
+        b = frac2
 
         new = [round(r*255), round(g*255), round(b*255)]
         if new != cur:
