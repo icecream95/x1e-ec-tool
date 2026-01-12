@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import argparse
 import ctypes
 import fcntl
 import math
@@ -209,6 +208,21 @@ def send_soc_temp(temp):
 def set_suspend_mode(mode):
     Request(FAN_ADDR).write(0x23, mode).send()
 
+# Backlight control is probably specific to ASUS Vivobook S15.
+# Note that brightness is also controlled by keyboard HID reports.
+
+BACKLIGHT_SOLID = 0x01
+BACKLIGHT_BREATHE = 0x02
+BACKLIGHT_RAINBOW = 0x03
+BACKLIGHT_STROBE = 0x04
+
+def set_keyboard_backlight(r, g, b, mode=BACKLIGHT_SOLID, period=7):
+    # TODO: What does this do?
+    unk = 0x55
+
+    Request(FAN_ADDR).write(0x51, 0x07, 0x66, 0x00, 0x10, 0x00, 0xb3, mode,
+                            r, g, b, unk, period, *([0] * 9)).send()
+
 ########
 
 def measure_fan_model(fan_ids, step=1):
@@ -325,11 +339,41 @@ def temperature_report_loop(zones, period=2, display=True):
     while True:
         temp = 0
         for fd in zones:
-            temp = max(temp, int(os.pread(fd, 20, 0)))
+            temp = max(temp, int(os.pread(fd, 20, 0)) / 1000)
 
         if display:
-            print(f"\r{temp / 1000} °C", end="", flush=True)
-        send_soc_temp(temp / 1000)
+            print(f"\r{temp} °C", end="", flush=True)
+        send_soc_temp(temp)
+        time.sleep(period)
+
+# "Fire" effect based on temperature
+def kb_backlight_fire(zones, period=0.2):
+    zones = open_thermal_zones(zones)
+    if not len(zones):
+        print("No zones")
+        return
+
+    min_temp = 40
+    temp_range = 30
+
+    cur = [256, 256, 256]
+
+    while True:
+        temp = 0
+        for fd in zones:
+            temp = max(temp, int(os.pread(fd, 20, 0)) / 1000)
+
+        frac = min(max((temp - min_temp) / temp_range, 0), 1)
+
+        r = frac * 1.0
+        g = frac * frac * 0.5
+        b = 0
+
+        new = [round(r*255), round(g*255), round(b*255)]
+        if new != cur:
+            set_keyboard_backlight(*new)
+            cur = new
+
         time.sleep(period)
 
 ########
@@ -364,6 +408,7 @@ def usage():
     print("profile : set profile (takes integer index starting at 0)")
     print("suspend : set suspend mode to 1 or 0 (DISABLES KEYBOARD while active!)")
     print("measure-rpm : measure RPM at different fan speeds (takes three minutes)")
+    print("kb : set ASUS keyboard backlight to #rrggbb or 'fire' effect")
 
 args = sys.argv[1:]
 
@@ -401,5 +446,21 @@ elif args[0] == "suspend":
     set_suspend_mode(int(args[1]))
 elif args[0] == "measure-rpm":
     measure_fan_model(range(len(info.fans)))
+elif args[0] == "kb":
+    if args[1] == "fire":
+        kb_backlight_fire(THERMAL_ZONES)
+    else:
+        colour = args[1].strip("#")
+        if re.fullmatch('[0-9a-fA-F]{3}', colour):
+            fac = 17
+        elif re.fullmatch('[0-9a-fA-F]{6}', colour):
+            colour = [colour[:2], colour[2:4], colour[4:]]
+            fac = 1
+        else:
+            print("#rrggbb or #rgb or 'fire'")
+            exit()
+
+        colour = [int(x, 16) * fac for x in colour]
+        set_keyboard_backlight(*colour)
 else:
     usage()
