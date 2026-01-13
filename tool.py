@@ -346,38 +346,6 @@ def temperature_report_loop(zones, period=2, display=True):
         send_soc_temp(temp)
         time.sleep(period)
 
-# "Fire" effect based on temperature
-def kb_backlight_fire(zones, period=0.2):
-    zones = open_thermal_zones(zones)
-    if not len(zones):
-        print("No zones")
-        return
-
-    min_temp = 40
-    blue_temp = 55
-    temp_range = 30
-
-    cur = [256, 256, 256]
-
-    while True:
-        temp = 0
-        for fd in zones:
-            temp = max(temp, int(os.pread(fd, 20, 0)) / 1000)
-
-        frac = min(max((temp - min_temp) / temp_range, 0), 1)
-        frac2 = min(max((temp - blue_temp) / temp_range, 0), 1)
-
-        r = frac * 1.0
-        g = frac * frac * 0.5
-        b = frac2
-
-        new = [round(r*255), round(g*255), round(b*255)]
-        if new != cur:
-            set_keyboard_backlight(*new)
-            cur = new
-
-        time.sleep(period)
-
 ########
 
 def rpm_for_freq(fan_id, hz):
@@ -410,7 +378,7 @@ def usage():
     print("profile : set profile (takes integer index starting at 0)")
     print("suspend : set suspend mode to 1 or 0 (DISABLES KEYBOARD while active!)")
     print("measure-rpm : measure RPM at different fan speeds (takes three minutes)")
-    print("kb : set ASUS keyboard backlight to #rrggbb or 'fire' effect")
+    print("kb : set ASUS keyboard backlight to #rgb or rrggbb")
 
 if __name__ == "__main__":
     args = sys.argv[1:]
@@ -450,20 +418,17 @@ if __name__ == "__main__":
     elif args[0] == "measure-rpm":
         measure_fan_model(range(len(info.fans)))
     elif args[0] == "kb":
-        if args[1] == "fire":
-            kb_backlight_fire(THERMAL_ZONES)
+        colour = args[1].strip("#")
+        if re.fullmatch('[0-9a-fA-F]{3}', colour):
+            fac = 17
+        elif re.fullmatch('[0-9a-fA-F]{6}', colour):
+            colour = [colour[:2], colour[2:4], colour[4:]]
+            fac = 1
         else:
-            colour = args[1].strip("#")
-            if re.fullmatch('[0-9a-fA-F]{3}', colour):
-                fac = 17
-            elif re.fullmatch('[0-9a-fA-F]{6}', colour):
-                colour = [colour[:2], colour[2:4], colour[4:]]
-                fac = 1
-            else:
-                print("#rrggbb or #rgb or 'fire'")
-                exit()
+            print("#rgb or #rrggbb")
+            exit()
 
-            colour = [int(x, 16) * fac for x in colour]
-            set_keyboard_backlight(*colour)
+        colour = [int(x, 16) * fac for x in colour]
+        set_keyboard_backlight(*colour)
     else:
         usage()
