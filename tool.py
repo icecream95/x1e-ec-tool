@@ -380,12 +380,10 @@ def usage():
     print("measure-rpm : measure RPM at different fan speeds (takes three minutes)")
     print("kb : set ASUS keyboard backlight to #rgb or rrggbb")
 
-if __name__ == "__main__":
-    args = sys.argv[1:]
-
+def main(args):
     if not len(args):
         usage()
-        exit()
+        return 0
 
     if args[0] == "get-speed":
         print_fan_speeds()
@@ -426,9 +424,13 @@ if __name__ == "__main__":
             fac = 1
         else:
             print("#rgb or #rrggbb")
-            exit()
+            return 1
 
         colour = [int(x, 16) * fac for x in colour]
         set_keyboard_backlight(*colour)
     else:
         usage()
+    return 1
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
