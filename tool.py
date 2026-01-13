@@ -412,57 +412,58 @@ def usage():
     print("measure-rpm : measure RPM at different fan speeds (takes three minutes)")
     print("kb : set ASUS keyboard backlight to #rrggbb or 'fire' effect")
 
-args = sys.argv[1:]
+if __name__ == "__main__":
+    args = sys.argv[1:]
 
-if not len(args):
-    usage()
-    exit()
+    if not len(args):
+        usage()
+        exit()
 
-if args[0] == "get-speed":
-    print_fan_speeds()
-elif args[0] == "set-speed":
-    speed = int(args[1])
-    if info.rpm_models is not None:
-        print(f"Setting speed to about {speed} RPM")
-        for i in range(len(info.fans)):
-            set_fan_speed(i, speed_for_rpm(i, speed))
-    else:
-        print(f"Setting speed to {speed}/255")
-        for i in range(len(info.fans)):
-            set_fan_speed(i, speed)
-elif args[0] == "mode":
-    if args[1] == "auto":
-        set_fan_mode(FAN_MODE_AUTO)
-    elif args[1] == "manual":
-        set_fan_mode(FAN_MODE_MANUAL)
-    else:
-        print("Invalid fan mode {args[1]}")
-elif args[0] == "profile":
-    profile = int(args[1])
-    if profile < len(info.profiles):
-        print(f"Setting profile to {info.profiles[profile]}")
-    set_fan_profile(profile)
-elif args[0] == "temp-loop":
-    temperature_report_loop(THERMAL_ZONES)
-elif args[0] == "suspend":
-    set_suspend_mode(int(args[1]))
-elif args[0] == "measure-rpm":
-    measure_fan_model(range(len(info.fans)))
-elif args[0] == "kb":
-    if args[1] == "fire":
-        kb_backlight_fire(THERMAL_ZONES)
-    else:
-        colour = args[1].strip("#")
-        if re.fullmatch('[0-9a-fA-F]{3}', colour):
-            fac = 17
-        elif re.fullmatch('[0-9a-fA-F]{6}', colour):
-            colour = [colour[:2], colour[2:4], colour[4:]]
-            fac = 1
+    if args[0] == "get-speed":
+        print_fan_speeds()
+    elif args[0] == "set-speed":
+        speed = int(args[1])
+        if info.rpm_models is not None:
+            print(f"Setting speed to about {speed} RPM")
+            for i in range(len(info.fans)):
+                set_fan_speed(i, speed_for_rpm(i, speed))
         else:
-            print("#rrggbb or #rgb or 'fire'")
-            exit()
+            print(f"Setting speed to {speed}/255")
+            for i in range(len(info.fans)):
+                set_fan_speed(i, speed)
+    elif args[0] == "mode":
+        if args[1] == "auto":
+            set_fan_mode(FAN_MODE_AUTO)
+        elif args[1] == "manual":
+            set_fan_mode(FAN_MODE_MANUAL)
+        else:
+            print("Invalid fan mode {args[1]}")
+    elif args[0] == "profile":
+        profile = int(args[1])
+        if profile < len(info.profiles):
+            print(f"Setting profile to {info.profiles[profile]}")
+        set_fan_profile(profile)
+    elif args[0] == "temp-loop":
+        temperature_report_loop(THERMAL_ZONES)
+    elif args[0] == "suspend":
+        set_suspend_mode(int(args[1]))
+    elif args[0] == "measure-rpm":
+        measure_fan_model(range(len(info.fans)))
+    elif args[0] == "kb":
+        if args[1] == "fire":
+            kb_backlight_fire(THERMAL_ZONES)
+        else:
+            colour = args[1].strip("#")
+            if re.fullmatch('[0-9a-fA-F]{3}', colour):
+                fac = 17
+            elif re.fullmatch('[0-9a-fA-F]{6}', colour):
+                colour = [colour[:2], colour[2:4], colour[4:]]
+                fac = 1
+            else:
+                print("#rrggbb or #rgb or 'fire'")
+                exit()
 
-        colour = [int(x, 16) * fac for x in colour]
-        set_keyboard_backlight(*colour)
-else:
-    usage()
+            colour = [int(x, 16) * fac for x in colour]
+            set_keyboard_backlight(*colour)
+    else:
+        usage()
