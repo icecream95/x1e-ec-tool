@@ -146,7 +146,7 @@ class Request:
         msg = I2c_rdwr_ioctl_data(arr, nmsgs)
         fcntl.ioctl(i2c_fd, I2C_RDWR, msg)
 
-######## EC basic commands (defined in DSDT)
+######## EC basic commands (ASUS-specific, defined in DSDT)
 
 def ecrb(maj, min):
     res = Buffer(1)

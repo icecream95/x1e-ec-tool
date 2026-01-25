@@ -17,6 +17,10 @@ possible that the device may work, if a model definition is added; see
 I would like to hear about any successes with other devices; patches
 are welcome!
 
+Note that not all features will work on all devices.
+For example, the keyboard backlight colour and manual fan speed
+control code is ASUS-specific.
+
 X2 devices might require more significant changes so are not yet
 supported.
 
