@@ -41,6 +41,8 @@ def usage():
     print("fire : temperature-based keyboard backlight effect")
 
 if __name__ == "__main__":
+    tool.init()
+
     args = sys.argv[1:]
 
     if not len(args):

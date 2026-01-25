@@ -432,6 +432,9 @@ class ECService:
 
         self.manager.connect_to_signal("PrepareForSleep", self.prepare_for_sleep)
 
+        # TODO: Do this in case we crashed and restarted during suspend?
+        #set_suspend_mode(0x00)
+
         print("Entering temperature reporting loop")
         print("Warning: The EC will reset the system if temperature reporting is stopped")
 
