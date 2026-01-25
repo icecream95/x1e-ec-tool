@@ -39,7 +39,7 @@ MODELS = {
 
 # Use the maximum of a selection of thermal zones, since
 # there can be a delta of about 10°C across the chip.
-# TODO: Do not try to use the core cluster 2 for Purwa.
+# TODO: Do not try to use core cluster 2 for Purwa.
 THERMAL_ZONES = [
     "cpu0-0-top-thermal",
     "cpu1-0-top-thermal",
@@ -229,12 +229,12 @@ BACKLIGHT_BREATHE = 0x02
 BACKLIGHT_RAINBOW = 0x03
 BACKLIGHT_STROBE = 0x04
 
-def set_keyboard_backlight(r, g, b, mode=BACKLIGHT_SOLID, period=7):
+def set_keyboard_backlight(r, g, b, mode=BACKLIGHT_SOLID, period=3):
     # TODO: What does this do?
     unk = 0x55
 
     Request(FAN_ADDR).write(0x51, 0x07, 0x66, 0x00, 0x10, 0x00, 0xb3, mode,
-                            r, g, b, unk, period, *([0] * 9)).send()
+                            r, g, b, unk, period * 2, *([0] * 9)).send()
 
 ########
 
@@ -460,13 +460,15 @@ def print_fan_speeds():
 
 def usage():
     print("get-speed : get fan speeds")
-    print("set-speed : set fan speed (RPM if available), only works in manual mode")
-    print("mode : set mode to 'manual' or 'auto'")
     print("temp-loop : send temps to EC (required for auto mode to work)")
     print("profile : set profile (takes integer index starting at 0)")
     print("suspend : set suspend mode to 1 or 0 (DISABLES KEYBOARD while active!)")
+    print("")
+    print("## ASUS-specific:")
+    print("set-speed : set fan speed (RPM if available), only works in manual mode")
+    print("mode : set mode to 'manual' or 'auto'")
     print("measure-rpm : measure RPM at different fan speeds (takes three minutes)")
-    print("kb : set ASUS keyboard backlight to #rgb or rrggbb")
+    print("kb : set keyboard backlight to #rgb or rrggbb")
 
 def main(args):
     if not len(args):
