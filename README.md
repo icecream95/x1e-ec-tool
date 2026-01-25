@@ -33,8 +33,8 @@ system suspend.
 
 To uninstall, run `uninstall.sh` as root and then reboot.
 
-Note that the `x1e-ec-tool.service` file uses `ConditionFirmware` so
-that it only runs on supported systems.
+Note that `x1e-ec-tool.service` uses `ConditionFirmware` so that it
+only runs on supported systems.
 
 ## Note
 
