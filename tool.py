@@ -302,6 +302,9 @@ def speed_for_rpm(fan_id, rpm):
     if model is None:
         raise RuntimeError("No fan RPM model defined")
 
+    if rpm == 0:
+        return 0
+
     quadratic_regex = r"([-+0-9.e]+)x\^2 ([-+0-9.e]+)x ([-+0-9.e]+)"
     m = re.fullmatch(quadratic_regex, model[0])
 
