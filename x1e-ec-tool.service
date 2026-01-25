@@ -1,0 +1,13 @@
+[Unit]
+Description=Send System Temperature To Embedded Controller
+Documentation=https://github.com/icecream95/x1e-ec-tool
+ConditionVirtualization=no
+ConditionFirmware=|device-tree-compatible(asus,vivobook-s15)
+
+[Service]
+Type=exec
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/local/bin/x1e-ec-tool ec-service
+
+[Install]
+WantedBy=multi-user.target

@@ -341,6 +341,15 @@ def open_thermal_zones(zones):
 
     return files
 
+def send_zone_temp(zones, display=False):
+    temp = 0
+    for fd in zones:
+        temp = max(temp, int(os.pread(fd, 20, 0)) / 1000)
+
+    if display:
+        print(f"\r{temp} °C", end="", flush=True)
+    send_soc_temp(temp)
+
 def temperature_report_loop(zones, period=2, display=True):
     # Infinite loop, so don't bother closing file handles...
     zones = open_thermal_zones(zones)
@@ -353,14 +362,81 @@ def temperature_report_loop(zones, period=2, display=True):
     print("hard poweroff the system.")
 
     while True:
-        temp = 0
-        for fd in zones:
-            temp = max(temp, int(os.pread(fd, 20, 0)) / 1000)
-
-        if display:
-            print(f"\r{temp} °C", end="", flush=True)
-        send_soc_temp(temp)
+        send_zone_temp(zones, display)
         time.sleep(period)
+
+class ECService:
+    def __init__(self, thermal_zones, period=2):
+        self.zones = open_thermal_zones(thermal_zones)
+        self.period = round(period)
+        self.lock = None
+        self.manager = None
+        self.timer = None
+
+    def take_lock(self):
+        if self.lock is None:
+            self.lock = self.manager.Inhibit("sleep", "EC Driver", "Suspend EC", "delay")
+
+    def release_lock(self):
+        if self.lock is not None:
+            os.close(self.lock.take())
+            self.lock = None
+
+    def temp_iter(self):
+        send_zone_temp(self.zones)
+        return True
+
+    def start_timer(self):
+        from gi.repository import GLib
+
+        if self.timer is None:
+            self.timer = GLib.timeout_add_seconds(self.period, self.temp_iter)
+
+    def stop_timer(self):
+        from gi.repository import GLib
+
+        if self.timer is not None:
+            GLib.source_remove(self.timer)
+            self.timer = None
+
+    def prepare_for_sleep(self, active):
+        if active:
+            self.stop_timer()
+            set_suspend_mode(0x01)
+            print("EC in suspend mode")
+            self.release_lock()
+        else:
+            self.take_lock()
+            print("EC resuming from suspend")
+            set_suspend_mode(0x00)
+            self.start_timer()
+
+    def run(self):
+        import dbus
+        from dbus.mainloop.glib import DBusGMainLoop
+        from gi.repository import GLib
+
+        if not len(self.zones):
+            print("Cannot open any thermal zones")
+            return
+
+        DBusGMainLoop(set_as_default=True)
+
+        system_bus = dbus.SystemBus()
+
+        login1 = system_bus.get_object("org.freedesktop.login1", "/org/freedesktop/login1")
+        self.manager = dbus.Interface(login1, "org.freedesktop.login1.Manager")
+
+        self.take_lock()
+        self.start_timer()
+
+        self.manager.connect_to_signal("PrepareForSleep", self.prepare_for_sleep)
+
+        print("Entering temperature reporting loop")
+        print("Warning: The EC will reset the system if temperature reporting is stopped")
+
+        loop = GLib.MainLoop()
+        loop.run()
 
 ########
 
@@ -440,6 +516,8 @@ def main(args):
 
         colour = [int(x, 16) * fac for x in colour]
         set_keyboard_backlight(*colour)
+    elif args[0] == "ec-service":
+        ECService(THERMAL_ZONES).run()
     else:
         usage()
     return 1
