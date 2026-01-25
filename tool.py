@@ -83,7 +83,7 @@ I2C_SLAVE = 0x0703
 I2C_RDWR = 0x0707
 
 # The EC handles both, so the distinction isn't precise
-EC_ADDR = 0x5b
+ASUS_EC_ADDR = 0x5b
 FAN_ADDR = 0x76
 
 def init():
@@ -94,7 +94,7 @@ def init():
 
     # Check that there is no kernel driver for the I2C devices
     fcntl.ioctl(i2c_fd, I2C_SLAVE, FAN_ADDR)
-    fcntl.ioctl(i2c_fd, I2C_SLAVE, EC_ADDR)
+    fcntl.ioctl(i2c_fd, I2C_SLAVE, ASUS_EC_ADDR)
 
 I2C_M_RD = 0x0001
 
@@ -150,11 +150,11 @@ class Request:
 
 def ecrb(maj, min):
     res = Buffer(1)
-    Request(EC_ADDR).write(0x10, maj, min).write(0x11).read(res).send()
+    Request(ASUS_EC_ADDR).write(0x10, maj, min).write(0x11).read(res).send()
     return res.array()[0]
 
 def ecwb(maj, min, value):
-    Request(EC_ADDR).write(0x10, maj, min).write(0x11, value).send()
+    Request(ASUS_EC_ADDR).write(0x10, maj, min).write(0x11, value).send()
     
 def ec_settle():
     while True:
