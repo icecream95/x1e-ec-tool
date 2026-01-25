@@ -54,8 +54,8 @@ def get_model_info():
     try:
         return MODELS[model]
     except KeyError:
-        print(f"Warning: Device '{model}' unrecognized")
-        return Model()
+        print(f"Error: Device '{model}' unrecognized")
+        return None
 
 def open_i2c(addr):
     buspath = f"/sys/bus/platform/devices/{addr}"
