@@ -76,8 +76,25 @@ def open_i2c(addr):
         except FileNotFoundError:
             raise RuntimeError("Try: modprobe i2c-dev")
 
+info = None
+i2c_fd = None
+
 I2C_SLAVE = 0x0703
 I2C_RDWR = 0x0707
+
+# The EC handles both, so the distinction isn't precise
+EC_ADDR = 0x5b
+FAN_ADDR = 0x76
+
+def init():
+    global info
+    global i2c_fd
+    info = get_model_info()
+    i2c_fd = open_i2c(BUSADDR)
+
+    # Check that there is no kernel driver for the I2C devices
+    fcntl.ioctl(i2c_fd, I2C_SLAVE, FAN_ADDR)
+    fcntl.ioctl(i2c_fd, I2C_SLAVE, EC_ADDR)
 
 I2C_M_RD = 0x0001
 
@@ -130,10 +147,6 @@ class Request:
         fcntl.ioctl(i2c_fd, I2C_RDWR, msg)
 
 ######## EC basic commands (defined in DSDT)
-
-# The EC handles both, so the distinction isn't precise
-EC_ADDR = 0x5b
-FAN_ADDR = 0x76
 
 def ecrb(maj, min):
     res = Buffer(1)
@@ -363,13 +376,6 @@ def print_fan_speeds():
 
 ########
 
-info = get_model_info()
-i2c_fd = open_i2c(BUSADDR)
-
-# Check that there is no kernel driver for the I2C devices
-fcntl.ioctl(i2c_fd, I2C_SLAVE, FAN_ADDR)
-fcntl.ioctl(i2c_fd, I2C_SLAVE, EC_ADDR)
-
 def usage():
     print("get-speed : get fan speeds")
     print("set-speed : set fan speed (RPM if available), only works in manual mode")
@@ -384,6 +390,9 @@ def main(args):
     if not len(args):
         usage()
         return 0
+
+    if info is None or i2c_fd is None:
+        sys.exit(1)
 
     if args[0] == "get-speed":
         print_fan_speeds()
@@ -433,4 +442,5 @@ def main(args):
     return 1
 
 if __name__ == "__main__":
+    init()
     sys.exit(main(sys.argv[1:]))
