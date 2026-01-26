@@ -2,6 +2,7 @@
 
 import ctypes
 import fcntl
+import functools
 import math
 import os
 import re
@@ -78,6 +79,7 @@ def open_i2c(addr):
 
 info = None
 i2c_fd = None
+i2c_locked = False
 
 I2C_SLAVE = 0x0703
 I2C_RDWR = 0x0707
@@ -146,6 +148,25 @@ class Request:
         msg = I2c_rdwr_ioctl_data(arr, nmsgs)
         fcntl.ioctl(i2c_fd, I2C_RDWR, msg)
 
+######## Locking
+
+def i2c_lock(f):
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        global i2c_locked
+        if i2c_locked:
+            return f(*args, **kwargs)
+
+        fcntl.flock(i2c_fd, fcntl.LOCK_EX)
+        i2c_locked = True
+        try:
+            return f(*args, **kwargs)
+        finally:
+            fcntl.flock(i2c_fd, fcntl.LOCK_UN)
+            i2c_locked = False
+
+    return wrapper
+
 ######## EC basic commands (ASUS-specific, defined in DSDT)
 
 def ecrb(maj, min):
@@ -162,6 +183,7 @@ def ec_settle():
             return
         time.sleep(0.05)
 
+@i2c_lock
 def eccr(a1, a2):
     ec_settle()
     ecwb(0xc4, 0x31, a2)
@@ -172,6 +194,7 @@ def eccr(a1, a2):
     ecwb(0xc4, 0x32, 0x00)
     return res
     
+@i2c_lock
 def eccw(a1, a2, val):
     ec_settle()
     ecwb(0xc4, 0x31, a2)
@@ -201,6 +224,7 @@ def set_fan_profile(profile):
     Request(FAN_ADDR).write(0x24, profile).send()
 
 # Speed is 0-255. Only works in manual fan mode
+@i2c_lock
 def set_fan_speed(fan_id, speed):
     if fan_id >= len(info.fans):
         print("Trying to set speed of invalid fan id")
@@ -238,6 +262,7 @@ def set_keyboard_backlight(r, g, b, mode=BACKLIGHT_SOLID, period=3):
 
 ########
 
+@i2c_lock
 def measure_fan_model(fan_ids, step=1):
     import numpy as np
 
@@ -365,6 +390,7 @@ def temperature_report_loop(zones, period=2, display=True):
         send_zone_temp(zones, display)
         time.sleep(period)
 
+# Must not call any @i2c_lock functions to avoid blocking!
 class ECService:
     def __init__(self, thermal_zones, period=2):
         self.zones = open_thermal_zones(thermal_zones)
