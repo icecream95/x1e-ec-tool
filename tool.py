@@ -266,61 +266,63 @@ def set_keyboard_backlight(r, g, b, mode=BACKLIGHT_SOLID, period=3):
 def measure_fan_model(fan_ids, step=1):
     import numpy as np
 
-    print("Switching to manual mode")
-    set_fan_mode(FAN_MODE_MANUAL)
+    try:
+        print("Switching to manual mode")
+        set_fan_mode(FAN_MODE_MANUAL)
 
-    print("Spinning up fans...")
-    for j in fan_ids:
-        set_fan_speed(j, 255)
-    time.sleep(3)
-
-    max_speeds = {j: get_fan_rpm(j) for j in fan_ids}
-
-    print("Collecting RPM information:")
-
-    data = {j: [] for j in fan_ids}
-    for i in range(254, 0, -1 * step):
+        print("Spinning up fans...")
         for j in fan_ids:
-            set_fan_speed(j, i)
-        time.sleep(0.5)
+            set_fan_speed(j, 255)
+        time.sleep(3)
+
+        max_speeds = {j: get_fan_rpm(j) for j in fan_ids}
+
+        print("Collecting RPM information:")
+
+        data = {j: [] for j in fan_ids}
+        for i in range(254, 0, -1 * step):
+            for j in fan_ids:
+                set_fan_speed(j, i)
+            time.sleep(0.5)
+            for j in fan_ids:
+                rpm = get_fan_rpm(j)
+                print(j, i, rpm)
+                data[j].append([i, rpm])
+
+        # Filter out speeds where the fan doesn't spin
+        data = {j: np.array([x for x in data[j] if x[1]]) for j in fan_ids}
+
         for j in fan_ids:
-            rpm = get_fan_rpm(j)
-            print(j, i, rpm)
-            data[j].append([i, rpm])
+            if not len(data):
+                print(f"Error: Could not read RPM for fan {j}")
 
-    # Filter out speeds where the fan doesn't spin
-    data = {j: np.array([x for x in data[j] if x[1]]) for j in fan_ids}
+        firsts = {j: data[j][:, 0].min() for j in fan_ids}
+        first_spins = {j: 255 for j in fan_ids}
 
-    for j in fan_ids:
-        if not len(data):
-            print(f"Error: Could not read RPM for fan {j}")
+        print("Searching for lowest speed where fans spin up")
 
-    firsts = {j: data[j][:, 0].min() for j in fan_ids}
-    first_spins = {j: 255 for j in fan_ids}
+        for i in range(min(firsts.values()), 255, step):
+            for j in fan_ids:
+                set_fan_speed(j, i)
+            time.sleep(0.5)
+            for j in fan_ids:
+                if first_spins[j] == 255 and get_fan_rpm(j):
+                    first_spins[j] = i
+            print(i, first_spins)
+            if 255 not in first_spins.values():
+                break
 
-    print("Searching for lowest speed where fans spin up")
+        print("Fan model data:")
 
-    for i in range(min(firsts.values()), 255, step):
         for j in fan_ids:
-            set_fan_speed(j, i)
-        time.sleep(0.5)
-        for j in fan_ids:
-            if first_spins[j] == 255 and get_fan_rpm(j):
-                first_spins[j] = i
-        print(i, first_spins)
-        if 255 not in first_spins.values():
-            break
+            a, b, c = np.polyfit(data[j][:, 0], data[j][:, 1], 2)
+            poly = f"{a:.4g}x^2 {b:+.4g}x {c:+.4g}"
 
-    print("Fan model data:")
+            print(f"{j}: ({poly}, {firsts[j]}, {first_spins[j]}, {max_speeds[j]}),")
 
-    for j in fan_ids:
-        a, b, c = np.polyfit(data[j][:, 0], data[j][:, 1], 2)
-        poly = f"{a:.4g}x^2 {b:+.4g}x {c:+.4g}"
-
-        print(f"{j}: ({poly}, {firsts[j]}, {first_spins[j]}, {max_speeds[j]}),")
-
-    print("Switching back to automatic mode")
-    set_fan_mode(FAN_MODE_AUTO)
+    finally:
+        print("Switching back to automatic mode")
+        set_fan_mode(FAN_MODE_AUTO)
 
 def speed_for_rpm(fan_id, rpm):
     model = None if info.rpm_models is None else info.rpm_models[fan_id]
