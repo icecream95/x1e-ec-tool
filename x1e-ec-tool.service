@@ -2,7 +2,7 @@
 Description=Send System Temperature To Embedded Controller
 Documentation=https://github.com/icecream95/x1e-ec-tool
 ConditionVirtualization=no
-ConditionFirmware=|device-tree-compatible(asus,vivobook-s15)
+ConditionFirmware=|smbios-field(product_family = "ASUS Vivobook S 15")
 
 [Service]
 Type=exec
