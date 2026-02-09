@@ -541,6 +541,9 @@ def main(args):
         else:
             print("Invalid fan mode {args[1]}")
     elif args[0] == "profile":
+        if len(args) != 2:
+            print("Profile number required:", [*enumerate(info.profiles)])
+            return 1
         profile = int(args[1])
         if profile < len(info.profiles):
             print(f"Setting profile to {info.profiles[profile]}")
