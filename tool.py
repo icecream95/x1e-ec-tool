@@ -499,9 +499,11 @@ def usage():
     print("kb : set keyboard backlight to #rgb or rrggbb")
 
 def main(args):
-    if not len(args):
+    if not len(args) or args[0] in {"-h", "--help"}:
         usage()
         return 0
+
+    init()
 
     if info is None or i2c_fd is None:
         sys.exit(1)
@@ -556,5 +558,4 @@ def main(args):
     return 1
 
 if __name__ == "__main__":
-    init()
     sys.exit(main(sys.argv[1:]))
