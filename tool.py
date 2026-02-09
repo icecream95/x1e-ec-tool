@@ -490,17 +490,26 @@ def print_fan_speeds():
 
 ########
 
+def is_service_active():
+    return os.system("systemctl is-active --quiet x1e-ec-tool.service") == 0
+
 def usage():
     print("get-speed : get fan speeds")
-    print("temp-loop : send temps to EC (required for auto mode to work)")
     print("profile : set profile (takes integer index starting at 0)")
-    print("suspend : set suspend mode to 1 or 0 (DISABLES KEYBOARD while active!)")
+    #print("temp-loop : send temps to EC (required for auto mode to work)")
+    #print("suspend : set suspend mode to 1 or 0 (DISABLES KEYBOARD while active!)")
     print("")
     print("## ASUS-specific:")
-    print("set-speed : set fan speed (RPM if available), only works in manual mode")
     print("mode : set mode to 'manual' or 'auto'")
-    print("measure-rpm : measure RPM at different fan speeds (takes three minutes)")
+    print("set-speed : set fan speed (RPM if available), only works in manual mode")
+    #print("measure-rpm : measure RPM at different fan speeds (takes three minutes)")
     print("kb : set keyboard backlight to #rgb or rrggbb")
+    print("")
+    if is_service_active():
+        print("STATUS: x1e-ec-tool service running")
+    else:
+        print("STATUS: x1e-ec-tool service not running")
+        print("Install the daemon (install.sh) for automatic fan control")
 
 def main(args):
     if not len(args) or args[0] in {"-h", "--help"}:
