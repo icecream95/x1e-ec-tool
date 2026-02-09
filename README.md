@@ -3,6 +3,11 @@
 Tool for working with the EC present on some Snapdragon X/X Plus/X Elite
 systems.
 
+## Help wanted!
+
+If you like writing kernel drivers, then it would be great if you can
+help get support into the upstream kernel!
+
 ## Supported devices:
 
 So far:
@@ -12,10 +17,21 @@ So far:
 But if the ACPI `dsdt.dsl` for your device has a block with the string
 `"Temp to EC"` that mentions `\_SB.I2C6.FC20`, then it is very
 possible that the device may work, if a model definition is added; see
-"MODELS" in `tool.py`.
+"MODELS" in `tool.py`. This includes the following models:
 
-I would like to hear about any successes with other devices; patches
-are welcome!
+- Acer SFA14-11
+- Honor MagicBook Art 14
+- HP EliteBook 6 G1q
+- HP EliteBook Ultra G1q
+- HP OmniBook X14
+- Lenovo IdeaCentre 01q8x10
+- Lenovo ThinkPad T14s
+- Lenovo Yoga Slim 7x
+- Medion SPRCHRGD 14 S1
+- Snapdragon Dev Kit
+
+I would like to hear about any successes with any of these devices or
+others; patches are welcome!
 
 Note that not all features will work on all devices.
 For example, the keyboard backlight colour and manual fan speed
