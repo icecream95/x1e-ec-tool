@@ -538,6 +538,7 @@ def main(args):
         set_fan_profile(profile)
     elif args[0] == "temp-loop":
         temperature_report_loop(THERMAL_ZONES)
+        return 1
     elif args[0] == "suspend":
         set_suspend_mode(int(args[1]))
     elif args[0] == "measure-rpm":
@@ -557,9 +558,11 @@ def main(args):
         set_keyboard_backlight(*colour)
     elif args[0] == "ec-service":
         ECService(THERMAL_ZONES).run()
+        return 1
     else:
         usage()
-    return 1
+        return 1
+    return 0
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))
