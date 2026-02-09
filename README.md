@@ -1,12 +1,24 @@
 # x1e-ec-tool
 
 Tool for working with the EC present on some Snapdragon X/X Plus/X Elite
-systems.
+systems. In particular, this provides automatic fan control on devices
+where this functionality is otherwise broken.
 
-## Help wanted!
+## Usage
 
-If you like writing kernel drivers, then it would be great if you can
-help get support into the upstream kernel!
+Run `./tool.py` to see help.
+
+## Installation
+
+For systems using systemd, running `install.sh` as root will install
+and start a service which sends the system temperature to the EC,
+allowing the fans to work properly. It will also suspend the EC before
+system suspend.
+
+To uninstall, run `uninstall.sh` as root and then reboot.
+
+Note that `x1e-ec-tool.service` uses `ConditionFirmware` so that it
+only runs on supported systems.
 
 ## Supported devices:
 
@@ -40,21 +52,10 @@ control code is ASUS-specific.
 X2 devices might require more significant changes so are not yet
 supported.
 
-## Usage
+## Help wanted!
 
-Run `./tool.py` to see help.
-
-## Installation
-
-For systems using systemd, running `install.sh` as root will install
-and start a service which sends the system temperature to the EC,
-allowing the fans to work properly. It will also suspend the EC before
-system suspend.
-
-To uninstall, run `uninstall.sh` as root and then reboot.
-
-Note that `x1e-ec-tool.service` uses `ConditionFirmware` so that it
-only runs on supported systems.
+If you like writing kernel drivers, then it would be great if you can
+help get support into the upstream kernel!
 
 ## Note
 
