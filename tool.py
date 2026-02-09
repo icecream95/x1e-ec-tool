@@ -272,6 +272,9 @@ def measure_fan_model(fan_ids, step=1):
 
         print("Spinning up fans...")
         for j in fan_ids:
+            set_fan_speed(j, 170)
+        time.sleep(1)
+        for j in fan_ids:
             set_fan_speed(j, 255)
         time.sleep(3)
 
@@ -293,8 +296,9 @@ def measure_fan_model(fan_ids, step=1):
         data = {j: np.array([x for x in data[j] if x[1]]) for j in fan_ids}
 
         for j in fan_ids:
-            if not len(data):
+            if not len(data[j]):
                 print(f"Error: Could not read RPM for fan {j}")
+                return
 
         firsts = {j: data[j][:, 0].min() for j in fan_ids}
         first_spins = {j: 255 for j in fan_ids}
