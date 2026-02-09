@@ -10,6 +10,8 @@ Run `./tool.py` to see help.
 
 ## Installation
 
+Required dependencies for the service: `python3-dbus python3-gi`.
+
 For systems using systemd, running `install.sh` as root will install
 and start a service which sends the system temperature to the EC,
 allowing the fans to work properly. It will also suspend the EC before
